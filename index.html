@@ -1,0 +1,1379 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SPAN Comparator</title>
+
+  <!-- Oat UI (CSS + optional JS for web components) -->
+  <link rel="stylesheet" href="https://unpkg.com/@knadh/oat/oat.min.css">
+  <script src="https://unpkg.com/@knadh/oat/oat.min.js" defer></script>
+
+  <style>
+    /* Full-width, no "dead margins" on large screens */
+    body { margin: 0; }
+    .page-pad{ padding-inline: clamp(12px, 1.4vw, 22px); }
+
+    header.appbar{
+      position: sticky; top: 0; z-index: 5;
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in srgb, var(--background) 88%, transparent);
+      backdrop-filter: blur(10px);
+    }
+    header.appbar > .wrap{
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+      padding-block: 12px;
+    }
+    .title { display:flex; flex-direction:column; gap:4px; min-width: 220px; }
+    .title h1{ margin:0; font-size: 16px; }
+    .title p{ margin:0; max-width: 980px; }
+
+    main{
+      padding-block: 14px;
+      display: grid;
+      grid-template-columns: clamp(320px, 28vw, 460px) 1fr;
+      gap: clamp(10px, 1.0vw, 16px);
+      align-items: start;
+    }
+    @media (max-width: 1040px){
+      main{ grid-template-columns: 1fr; }
+    }
+
+    /* Make Oat form field blocks consistent */
+    label[data-field]{
+      display:flex;
+      flex-direction:column;
+      gap: 6px;
+      margin: 0;
+    }
+    label[data-field] > small[data-hint]{ margin-top: 2px; }
+
+    .card header{
+      display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+      margin-bottom: 10px;
+    }
+    .card header h2{ margin:0; font-size: 14px; }
+    .card header small{ display:block; margin-top: 2px; }
+
+    .stack{ display:flex; flex-direction:column; gap:10px; }
+    .row{ display:flex; gap:10px; flex-wrap: wrap; align-items: center; }
+    .grow{ flex: 1; }
+    .muted{ color: var(--muted-foreground); }
+
+    /* Filters: auto-fit so there are no empty "grid columns".
+       Also remove align-items:end to avoid the tall "Sort" field causing blank space above others. */
+    .filters{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 10px;
+      align-items: stretch;
+      margin-bottom: 10px;
+    }
+
+    /* Table: sticky header + number alignment */
+    .tablewrap{
+      max-height: 72vh;
+      overflow: auto;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: color-mix(in srgb, var(--background) 86%, var(--card));
+    }
+    table{ width:100%; border-collapse: separate; border-spacing: 0; }
+    thead th{
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: color-mix(in srgb, var(--card) 92%, transparent);
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    tbody td{ white-space: nowrap; }
+    td.num, th.num{ text-align:right; font-variant-numeric: tabular-nums; }
+    th .arrow{ opacity:.8; margin-left: 6px; font-size: 11px; }
+
+    /* Compact mode */
+    body.compact table th, body.compact table td{ padding: 8px 10px; }
+    body.compact .tablewrap{ max-height: 76vh; }
+
+    /* Totals pills */
+    .totals{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin: 8px 0 10px; }
+    .totals .badge strong{ margin-right: 6px; }
+
+    /* Dark palette (base). Accent will override --primary/--ring via JS. */
+    body[data-theme="dark"]{
+      --background: rgb(7 13 24);
+      --foreground: rgb(230 237 248);
+      --card: rgb(14 22 40);
+      --card-foreground: rgb(230 237 248);
+
+      --secondary: rgb(12 19 35);
+      --secondary-foreground: rgb(230 237 248);
+
+      --muted: rgb(11 18 32);
+      --muted-foreground: rgb(147 164 191);
+
+      --faint: rgb(10 16 32);
+      --faint-foreground: rgb(147 164 191);
+
+      --accent: rgb(15 23 42);
+      --accent-foreground: rgb(226 232 240);
+
+      --border: rgb(30 41 59);
+      --input: rgb(30 41 59);
+
+      --danger: rgb(251 113 133);
+      --danger-foreground: rgb(15 23 42);
+
+      --success: rgb(52 211 153);
+      --success-foreground: rgb(15 23 42);
+
+      --warning: rgb(251 191 36);
+      --warning-foreground: rgb(15 23 42);
+    }
+  </style>
+
+  <style id="accent_style"></style>
+</head>
+
+<body data-theme="dark">
+<header class="appbar">
+  <div class="wrap page-pad">
+    <div class="title">
+      <h1>SPAN Comparator</h1>
+      <p class="muted">
+        Upload Intraday + BOD SPAN (SPN or ZIP), optionally load Bhav for lots. Compare per-contract SPAN and totals. For options, SPAN shown = scan risk + option premium (matches Zerodha margin calculator “SPAN” for short options).
+      </p>
+    </div>
+
+    <menu class="buttons" style="margin:0; align-items:center; flex-wrap:wrap;">
+      <label class="muted" style="display:flex; align-items:center; gap:6px;">
+        Theme
+        <select id="theme_mode" style="min-width:140px">
+          <option value="system">System</option>
+          <option value="dark" selected>Dark</option>
+          <option value="light">Light</option>
+        </select>
+      </label>
+
+      <label class="muted" style="display:flex; align-items:center; gap:6px;">
+        Accent
+        <select id="accent">
+          <option value="oat">Oat Brown</option>
+          <option value="sky" selected>Sky</option>
+          <option value="emerald">Emerald</option>
+          <option value="violet">Violet</option>
+        </select>
+      </label>
+
+      <label class="muted" style="display:flex; align-items:center; gap:6px; padding: 0 6px;">
+        <input type="checkbox" id="compact" />
+        Compact
+      </label>
+    </menu>
+  </div>
+</header>
+
+<main class="page-pad">
+  <!-- LEFT -->
+  <article class="card">
+    <header>
+      <div>
+        <h2>1) Segment + uploads</h2>
+        <small class="muted">Default lots for BFO: SENSEX=20, BANKEX=30, SENSEX50=75.</small>
+      </div>
+      <span class="badge secondary" id="status_badge">Idle</span>
+    </header>
+
+    <div class="stack">
+      <label data-field>
+        Segment
+        <select id="segment">
+          <option value="NFO" selected>NFO (NSE)</option>
+          <option value="BFO">BFO (BSE)</option>
+          <option value="MCX">MCX</option>
+        </select>
+      </label>
+
+      <label data-field>
+        Intraday SPAN (.spn / .zip)
+        <input id="intra" type="file" accept=".spn,.xml,.zip" />
+      </label>
+
+      <label data-field>
+        BOD SPAN (.spn / .zip)
+        <input id="bod" type="file" accept=".spn,.xml,.zip" />
+      </label>
+
+      <label data-field id="bhav_field">
+        Bhav (optional, for lots)
+        <input id="bhav" type="file" />
+        <small data-hint id="bhav_hint">NFO supports CSV/ZIP (needs TckrSymb, NewBrdLotQty, XpryDt). MCX supports .xls (HTML table).</small>
+      </label>
+
+      <label data-field id="bhav_filter_wrap">
+        Filter (NFO)
+        <label style="display:flex; align-items:center; gap:8px; margin-top:2px;">
+          <input id="bhav_filter" type="checkbox" checked />
+          <span class="muted">Show only SPAN contracts present in Bhav XpryDt</span>
+        </label>
+      </label>
+
+      <div role="alert" id="bfo_hint" data-variant="warning" style="display:none;">
+        <strong>BFO:</strong> Bhav is disabled here. Using default lots (SENSEX=20, BANKEX=30, SENSEX50=75). BFO derivatives exist but not traded yet.
+      </div>
+
+      <small class="muted" id="lot_status">Lot source: default</small>
+
+      <menu class="buttons" style="margin:0;">
+        <button id="btn_parse">RUN</button>
+        <button class="secondary" id="btn_export" disabled>Export CSV</button>
+        <button class="outline" id="btn_clear" type="button">Clear</button>
+      </menu>
+
+      <progress id="prog" value="0" max="100"></progress>
+      <small class="muted" id="meta"></small>
+      <small class="muted" id="hint"></small>
+
+      <details>
+        <summary>Download sources</summary>
+        <ul>
+          <li><a href="https://www.nseindia.com/all-reports-derivatives" target="_blank" rel="noopener">NFO: SPAN + Bhav</a></li>
+          <li><a href="https://www.bseindia.com/markets/MarketInfo/BhavCopy.aspx" target="_blank" rel="noopener">BFO: Bhav</a></li>
+          <li><a href="https://www.mcxindia.com/education-training/daily-span-risk-parameter-file" target="_blank" rel="noopener">MCX: SPAN</a></li>
+          <li><a href="https://www.mcxindia.com/market-data/bhavcopy" target="_blank" rel="noopener">MCX: Bhav</a></li>
+        </ul>
+      </details>
+    </div>
+  </article>
+
+  <!-- RIGHT -->
+  <article class="card">
+    <header>
+      <div>
+        <h2>2) Filters + results</h2>
+        <small class="muted">Click table headers to sort. Totals are sum of (SPAN × lot) for currently filtered rows.</small>
+      </div>
+      <span class="badge outline"><span id="count">0</span> rows</span>
+    </header>
+
+    <div class="filters">
+      <label data-field>
+        Instrument
+        <select id="f_type">
+          <option value="FUT" selected>FUT</option>
+          <option value="CE">CE</option>
+          <option value="PE">PE</option>
+          <option value="ALL">ALL</option>
+        </select>
+      </label>
+
+      <label data-field>
+        Year
+        <select id="f_year"><option value="ALL">ALL</option></select>
+      </label>
+
+      <label data-field>
+        Month
+        <select id="f_month"><option value="ALL">ALL</option></select>
+      </label>
+
+      <label data-field>
+        Symbol contains
+        <input id="f_symbol" type="text" placeholder="e.g., NIFTY / CRUDEOIL / SENSEX" />
+      </label>
+
+      <label data-field id="strike_field">
+        Strike (exact)
+        <input id="f_strike" type="text" placeholder="e.g., 25000" />
+      </label>
+
+      <label data-field>
+        Sort by
+        <select id="sort_key">
+          <option value="symbol" selected>symbol</option>
+          <option value="expiry">expiry</option>
+          <option value="intraday">intraday</option>
+          <option value="BOD">BOD</option>
+          <option value="diff">diff</option>
+          <option value="pct">%chg</option>
+          <option value="strike">strike</option>
+        </select>
+      </label>
+
+      <label data-field>
+        Order
+        <select id="sort_dir">
+          <option value="asc">asc</option>
+          <option value="desc">desc</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="totals" id="totals"></div>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr id="thead_row"></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <small class="muted" id="render_note" style="display:block; margin-top:8px;"></small>
+  </article>
+</main>
+
+<script>
+/** Storage helpers **/
+const LS = {
+  get: (k, d=null) => { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch { return d; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+};
+
+/** Accent presets */
+const ACCENTS = {
+  oat:     { primary: "rgb(87 71 71)",   ring:"rgb(87 71 71)",   fg:"rgb(250 250 250)" },
+  sky:     { primary: "rgb(56 189 248)", ring:"rgb(56 189 248)", fg:"rgb(3 16 24)" },
+  emerald: { primary: "rgb(16 185 129)", ring:"rgb(16 185 129)", fg:"rgb(2 16 10)" },
+  violet:  { primary: "rgb(168 85 247)", ring:"rgb(168 85 247)", fg:"rgb(10 3 16)" },
+};
+function applyAccent(name){
+  const a = ACCENTS[name] || ACCENTS.sky;
+  document.getElementById("accent_style").textContent = `
+    :root{
+      --primary: ${a.primary};
+      --primary-foreground: ${a.fg};
+      --ring: ${a.ring};
+    }
+    body[data-theme="dark"]{
+      --primary: ${a.primary};
+      --primary-foreground: ${a.fg};
+      --ring: ${a.ring};
+    }
+  `;
+  LS.set("ui.accent", name);
+}
+function applyThemeMode(mode){
+  const body = document.body;
+  const mm = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+
+  const setByPref = () => {
+    if (!mm) return;
+    if (mm.matches) body.setAttribute("data-theme","dark");
+    else body.removeAttribute("data-theme");
+  };
+
+  if (window.__themeListener && mm){
+    try { mm.removeEventListener("change", window.__themeListener); } catch {}
+  }
+  window.__themeListener = null;
+
+  if (mode === "dark"){
+    body.setAttribute("data-theme","dark");
+  } else if (mode === "light"){
+    body.removeAttribute("data-theme");
+  } else {
+    setByPref();
+    if (mm){
+      window.__themeListener = () => setByPref();
+      try { mm.addEventListener("change", window.__themeListener); } catch {}
+    }
+  }
+  LS.set("ui.themeMode", mode);
+}
+function applyCompact(on){
+  document.body.classList.toggle("compact", !!on);
+  LS.set("ui.compact", on ? "1" : "0");
+}
+
+/** Lots */
+const BFO_LOTS = { "SENSEX50": 75, "BANKEX": 30, "SENSEX": 20 };
+const MCX_FALLBACK = {
+  "ALUMINIUM": 5000, "ALUMINI": 1000, "CARDAMOM": 100, "COPPER": 2500,
+  "CRUDEOIL": 100, "CRUDEOILM": 10, "ELECDMBL": 50, "ELECMBL": 50,
+  "GOLD": 100, "GOLDGUINEA": 1, "GOLDM": 10, "GOLDTEN": 1, "GOLDPETAL": 1,
+  "LEAD": 5000, "LEADMINI": 1000, "MCXBULLDEX": 30, "MENTHAOIL": 360,
+  "NICKEL": 250, "NATURALGAS": 1250, "NATGASMINI": 250, "SILVER": 30,
+  "SILVERM": 5, "SILVERMIC": 1, "ZINC": 5000, "ZINCMINI": 1000
+};
+const MCX_GRAM_QUOTE = { "GOLD":10, "GOLDM":10, "GOLDTEN":10, "GOLDPETAL":1, "GOLDGUINEA":8 };
+
+const DISPLAY_LIMIT = 6000;
+const MONTH_NAMES = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+const $ = (id) => document.getElementById(id);
+
+const fmt = (x) => (x === null || x === undefined || Number.isNaN(x)) ? "" : (+x).toFixed(2);
+const fmtPct = (x) => (x === null || x === undefined || !Number.isFinite(x)) ? "" : (x).toFixed(2) + "%";
+const fmtINR = (x) => {
+  if (x === null || x === undefined || !Number.isFinite(x)) return "";
+  return new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(x);
+};
+
+function setStatus(text, variant="secondary"){
+  const b = $("status_badge");
+  b.textContent = text;
+  b.className = "badge " + variant;
+}
+function setProg(p){ $("prog").value = Math.max(0, Math.min(100, p)); }
+function setMeta(t){ $("meta").textContent = t || ""; }
+function setHint(t){ $("hint").textContent = t || ""; }
+
+let LOT_SOURCE = "default";
+let LOT_BY_SYMBOL = {};
+let LOT_BY_KEY = {};
+let BHAV_KEYS = new Set();
+let LOT_MISSING = 0;
+let FILTER_DROPPED = 0;
+
+function resetLots(){
+  LOT_SOURCE = "default";
+  LOT_BY_SYMBOL = {};
+  LOT_BY_KEY = {};
+  BHAV_KEYS = new Set();
+  LOT_MISSING = 0;
+  FILTER_DROPPED = 0;
+}
+function setLotStatus(){
+  const seg = $("segment").value;
+  if (seg === "BFO"){
+    $("lot_status").textContent = "Lot source: hardcoded defaults (BFO).";
+    return;
+  }
+  if (LOT_SOURCE === "bhav"){
+    const ns = Object.keys(LOT_BY_SYMBOL||{}).length;
+    const nk = Object.keys(LOT_BY_KEY||{}).length;
+    $("lot_status").textContent = `Lot source: bhav (${ns} symbols, ${nk} symbol-expiry keys, missing lots: ${LOT_MISSING}, dropped by bhav filter: ${FILTER_DROPPED})`;
+  } else {
+    $("lot_status").textContent = "Lot source: default";
+  }
+}
+function lotFor(seg, symbol, expiry){
+  symbol = (symbol || "").toUpperCase();
+  expiry = (expiry || "").trim();
+
+  if (seg === "BFO") return BFO_LOTS[symbol] || 1;
+
+  if (seg === "MCX"){
+    if (LOT_SOURCE === "bhav" && LOT_BY_SYMBOL[symbol]) return LOT_BY_SYMBOL[symbol];
+    return MCX_FALLBACK[symbol] || 1;
+  }
+
+  if (LOT_SOURCE === "bhav"){
+    const k = symbol + "|" + expiry;
+    if (LOT_BY_KEY[k]) return LOT_BY_KEY[k];
+    if (LOT_BY_SYMBOL[symbol]) return LOT_BY_SYMBOL[symbol];
+  }
+  return 1;
+}
+function shouldKeepByBhav(seg, symbol, expiry){
+  if (seg !== "NFO") return true;
+  if (LOT_SOURCE !== "bhav") return true;
+  if (!$("bhav_filter").checked) return true;
+  return BHAV_KEYS.has(symbol.toUpperCase() + "|" + (expiry||"").trim());
+}
+
+/** ZIP helpers **/
+function findEOCD(u8){
+  const sig = 0x06054b50;
+  const maxBack = Math.min(u8.length, 0xFFFF + 22);
+  for (let i = u8.length - 22; i >= u8.length - maxBack; i--){
+    if (i < 0) break;
+    if ((u8[i] | (u8[i+1]<<8) | (u8[i+2]<<16) | (u8[i+3]<<24)) >>> 0 === sig) return i;
+  }
+  return -1;
+}
+async function unzipPickFirstMatching(file, predicate){
+  const ab = await file.arrayBuffer();
+  const u8 = new Uint8Array(ab);
+  const dv = new DataView(ab);
+
+  const eocdPos = findEOCD(u8);
+  if (eocdPos === -1) throw new Error("ZIP: cannot find EOCD");
+  const cdCount = dv.getUint16(eocdPos + 10, true);
+  const cdOff   = dv.getUint32(eocdPos + 16, true);
+
+  let ptr = cdOff;
+  const CD_SIG = 0x02014b50;
+  let chosen = null;
+
+  for (let i=0;i<cdCount;i++){
+    if (dv.getUint32(ptr, true) !== CD_SIG) break;
+    const compSize = dv.getUint32(ptr + 20, true);
+    const fnameLen = dv.getUint16(ptr + 28, true);
+    const extraLen = dv.getUint16(ptr + 30, true);
+    const commLen  = dv.getUint16(ptr + 32, true);
+    const lho = dv.getUint32(ptr + 42, true);
+    const nameBytes = u8.slice(ptr + 46, ptr + 46 + fnameLen);
+    const name = new TextDecoder("utf-8").decode(nameBytes);
+    if (!chosen && predicate(name)) { chosen = { name, compSize, lho }; break; }
+    ptr = ptr + 46 + fnameLen + extraLen + commLen;
+  }
+  if (!chosen) throw new Error("ZIP: no matching file entry");
+
+  const LFH_SIG = 0x04034b50;
+  if (dv.getUint32(chosen.lho, true) !== LFH_SIG) throw new Error("ZIP: bad local header");
+  const method = dv.getUint16(chosen.lho + 8, true);
+  const fnameLen = dv.getUint16(chosen.lho + 26, true);
+  const extraLen = dv.getUint16(chosen.lho + 28, true);
+  const dataStart = chosen.lho + 30 + fnameLen + extraLen;
+
+  const comp = u8.slice(dataStart, dataStart + chosen.compSize);
+  if (method === 0) return new TextDecoder("utf-8").decode(comp);
+  if (method !== 8) throw new Error("ZIP: unsupported compression method " + method);
+  if (typeof DecompressionStream === "undefined") throw new Error("ZIP: DecompressionStream not supported; unzip and upload inner file");
+
+  for (const fmt of ["deflate-raw","deflate"]){
+    try{
+      const ds = new DecompressionStream(fmt);
+      const stream = new Blob([comp]).stream().pipeThrough(ds);
+      const outAb = await new Response(stream).arrayBuffer();
+      return new TextDecoder("utf-8").decode(new Uint8Array(outAb));
+    }catch(e){}
+  }
+  throw new Error("ZIP: unable to inflate");
+}
+async function readTextMaybeZip(file, wantedExts){
+  const name = (file.name || "").toLowerCase();
+  if (name.endsWith(".zip")){
+    return await unzipPickFirstMatching(file, (n) => {
+      const nn = n.toLowerCase();
+      return wantedExts.some(ext => nn.endsWith(ext));
+    });
+  }
+  return await file.text();
+}
+
+/** Worker parser (string scanning XML) **/
+function makeWorker(){
+  const workerSrc = `
+  function indexOfTagOpen(text, tag, from){ return text.indexOf('<' + tag, from); }
+  function blockInner(text, tag, from){
+    const start = indexOfTagOpen(text, tag, from);
+    if (start === -1) return null;
+    const openEnd = text.indexOf('>', start);
+    if (openEnd === -1) return null;
+    const closeTag = '</' + tag + '>';
+    const end = text.indexOf(closeTag, openEnd);
+    if (end === -1) return null;
+    return { inner: text.slice(openEnd + 1, end), start, end: end + closeTag.length };
+  }
+  function tagValue(text, tag){
+    const open = '<' + tag + '>';
+    const i = text.indexOf(open);
+    if (i === -1) return '';
+    const j = text.indexOf('</' + tag + '>', i + open.length);
+    if (j === -1) return '';
+    return text.slice(i + open.length, j).trim();
+  }
+  function minMaxAInRa(raText){
+    let min = null, max = null, pos = 0;
+    while (true){
+      const aStart = raText.indexOf('<a', pos);
+      if (aStart === -1) break;
+      const aOpenEnd = raText.indexOf('>', aStart);
+      if (aOpenEnd === -1) break;
+      const aEnd = raText.indexOf('</a>', aOpenEnd);
+      if (aEnd === -1) break;
+      const valStr = raText.slice(aOpenEnd + 1, aEnd).trim();
+      const n = Number(valStr);
+      if (Number.isFinite(n)){
+        min = (min === null) ? n : (n < min ? n : min);
+        max = (max === null) ? n : (n > max ? n : max);
+      }
+      pos = aEnd + 4;
+    }
+    return {min, max};
+  }
+  function spanWorst(raText){
+    const mm = minMaxAInRa(raText);
+    if (mm.min === null || mm.max === null) return null;
+    const a = Math.abs(mm.min), b = Math.abs(mm.max);
+    return (a > b) ? a : b;
+  }
+  function parseFutures(xml){
+    const out = [];
+    let pos = 0;
+    while (true){
+      const pf = blockInner(xml, 'futPf', pos);
+      if (!pf) break;
+      pos = pf.end;
+      const symbol = tagValue(pf.inner, 'pfCode').toUpperCase();
+      if (!symbol) continue;
+      let fpos = 0;
+      while (true){
+        const fut = blockInner(pf.inner, 'fut', fpos);
+        if (!fut) break;
+        fpos = fut.end;
+        const pe = tagValue(fut.inner, 'pe'); // YYYYMMDD
+        const ra = blockInner(fut.inner, 'ra', 0);
+        const span = ra ? spanWorst(ra.inner) : null;
+        out.push({ symbol, expiry: pe, type:'FUT', optCp:'', strike:'', span });
+      }
+    }
+    return out;
+  }
+  function parseOptions(xml){
+    const out = [];
+    const tags = ['oopPf','oofPf'];
+    for (const tag of tags){
+      let pos = 0;
+      while (true){
+        const cont = blockInner(xml, tag, pos);
+        if (!cont) break;
+        pos = cont.end;
+        const und = blockInner(cont.inner, 'undPf', 0);
+        const symbol = und ? tagValue(und.inner, 'pfCode').toUpperCase() : tagValue(cont.inner, 'pfCode').toUpperCase();
+        if (!symbol) continue;
+        let spos = 0;
+        while (true){
+          const series = blockInner(cont.inner, 'series', spos);
+          if (!series) break;
+          spos = series.end;
+          const pe = tagValue(series.inner, 'pe'); // YYYYMMDD
+          let opos = 0;
+          while (true){
+            const opt = blockInner(series.inner, 'opt', opos);
+            if (!opt) break;
+            opos = opt.end;
+            const o = tagValue(opt.inner, 'o');
+            const optCp = (o === 'C') ? 'CE' : (o === 'P') ? 'PE' : '';
+            const strike = tagValue(opt.inner, 'k');
+            const prem = tagValue(opt.inner, 'p'); // option premium (per unit)
+            const ra = blockInner(opt.inner, 'ra', 0);
+            const span = ra ? spanWorst(ra.inner) : null;
+            out.push({ symbol, expiry: pe, type:'OPT', optCp, strike, span, prem });
+          }
+        }
+      }
+    }
+    return out;
+  }
+  function parseByExchange(xmlText, targetExch){
+    const found = [];
+    let rows = [], futCount = 0, optCount = 0, pos = 0;
+    let anyExchangeBlocks = false;
+    while (true){
+      const ex = blockInner(xmlText, 'exchange', pos);
+      if (!ex) break;
+      anyExchangeBlocks = true;
+      pos = ex.end;
+      const code = tagValue(ex.inner, 'exch').toUpperCase();
+      if (code && found.indexOf(code) === -1) found.push(code);
+      if (code && code === targetExch){
+        const futRows = parseFutures(ex.inner);
+        const optRows = parseOptions(ex.inner);
+        futCount += futRows.length; optCount += optRows.length;
+        rows = rows.concat(futRows, optRows);
+      }
+    }
+    if (anyExchangeBlocks){
+      const matched = rows.length > 0;
+      return { rows, meta:{ fut:futCount, opt:optCount, exchFound:found, exchUsed:targetExch, exchMatched: matched } };
+    }
+    const futRows = parseFutures(xmlText);
+    const optRows = parseOptions(xmlText);
+    return { rows: futRows.concat(optRows), meta:{ fut:futRows.length, opt:optRows.length, exchFound:[], exchUsed:targetExch, exchMatched:null } };
+  }
+  self.onmessage = (e) => {
+    const { id, xmlText, targetExch } = e.data;
+    try{
+      const res = parseByExchange(xmlText, (targetExch || '').toUpperCase());
+      self.postMessage({ id, ok:true, rows: res.rows || [], meta: res.meta || {} });
+    }catch(err){
+      self.postMessage({ id, ok:false, error: String(err?.message || err) });
+    }
+  };
+  `;
+  const blob = new Blob([workerSrc], {type:"application/javascript"});
+  return new Worker(URL.createObjectURL(blob));
+}
+async function parseSpanText(xmlText, targetExch, worker, jobId){
+  worker.postMessage({ id: jobId, xmlText, targetExch });
+  return new Promise((resolve, reject) => {
+    const handler = (e) => {
+      if (e.data.id !== jobId) return;
+      worker.removeEventListener("message", handler);
+      if (!e.data.ok) reject(new Error(e.data.error || "parse failed"));
+      else resolve({ rows: e.data.rows || [], meta: e.data.meta || {} });
+    };
+    worker.addEventListener("message", handler);
+  });
+}
+
+/** Bhav parsing **/
+function splitCsvLine(line){
+  const out = [];
+  let cur = "", inQ = false;
+  for (let i=0;i<line.length;i++){
+    const ch = line[i];
+    if (inQ){
+      if (ch === '"'){
+        if (i+1 < line.length && line[i+1] === '"'){ cur += '"'; i++; }
+        else inQ = false;
+      } else cur += ch;
+    } else {
+      if (ch === '"') inQ = true;
+      else if (ch === ','){ out.push(cur); cur=""; }
+      else cur += ch;
+    }
+  }
+  out.push(cur);
+  return out;
+}
+function ymdFromBhavDate(s){
+  const t = (s||"").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t.replaceAll("-","");
+  if (/^\d{8}$/.test(t)) return t;
+  return "";
+}
+async function loadLotsFromNseFoBhav(file){
+  const text = await readTextMaybeZip(file, [".csv"]);
+  const lines = text.split(/\r?\n/);
+  if (lines.length < 2) throw new Error("Bhav: empty file");
+  const header = splitCsvLine(lines[0]).map(s => s.trim());
+  const idxSym = header.indexOf("TckrSymb");
+  const idxLot = header.indexOf("NewBrdLotQty");
+  const idxXpry = header.indexOf("XpryDt");
+  if (idxSym === -1 || idxLot === -1) throw new Error("Bhav: need TckrSymb, NewBrdLotQty");
+  if (idxXpry === -1) throw new Error("Bhav: need XpryDt for NFO expiry filter");
+
+  const bySym = {};
+  const byKey = {};
+  const keys = new Set();
+  for (let i=1;i<lines.length;i++){
+    const line = lines[i];
+    if (!line) continue;
+    const cols = splitCsvLine(line);
+    const sym = (cols[idxSym] || "").trim().toUpperCase();
+    const lot = Number((cols[idxLot] || "").trim());
+    const xpry = ymdFromBhavDate(cols[idxXpry] || "");
+    if (!sym || !Number.isFinite(lot) || lot <= 0) continue;
+
+    bySym[sym] = bySym[sym] ? Math.max(bySym[sym], lot) : lot;
+    if (xpry){
+      const k = sym + "|" + xpry;
+      byKey[k] = byKey[k] ? Math.max(byKey[k], lot) : lot;
+      keys.add(k);
+    }
+  }
+  return { bySym, byKey, keys };
+}
+function parseNum(s){
+  const m = String(s).match(/[-+]?\d*\.?\d+/);
+  return m ? Number(m[0]) : null;
+}
+function parseUnit(s){
+  const t = String(s).trim();
+  const m = t.match(/[A-Za-z]+$/);
+  return m ? m[0].toUpperCase() : "";
+}
+async function loadLotsFromMcxBhav(file){
+  const text = await file.text();
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(text, "text/html");
+  const table = doc.querySelector("table");
+  if (!table) throw new Error("MCX bhav: no table found");
+  const rows = Array.from(table.querySelectorAll("tr"));
+  if (rows.length < 2) throw new Error("MCX bhav: no rows");
+
+  const headCells = Array.from(rows[0].querySelectorAll("th,td")).map(x => x.textContent.trim());
+  const idxSymbol = headCells.findIndex(h => /symbol/i.test(h));
+  const idxLots = headCells.findIndex(h => /Volume\(Lots\)/i.test(h));
+  const idxVol = headCells.findIndex(h => /Volume\(In/i.test(h));
+  if (idxSymbol === -1 || idxLots === -1 || idxVol === -1){
+    throw new Error("MCX bhav: need columns Symbol, Volume(Lots), Volume(In 000's)");
+  }
+
+  const cand = {};
+  for (let i=1;i<rows.length;i++){
+    const cells = Array.from(rows[i].querySelectorAll("td"));
+    if (cells.length < Math.max(idxSymbol, idxLots, idxVol) + 1) continue;
+    const sym = (cells[idxSymbol].textContent || "").trim().toUpperCase();
+    const vLots = parseNum(cells[idxLots].textContent);
+    const v000 = parseNum(cells[idxVol].textContent);
+    const unit = parseUnit(cells[idxVol].textContent);
+    if (!sym || !vLots || !v000) continue;
+    if (!(vLots > 0) || !(v000 > 0)) continue;
+
+    let contractSize = (v000 * 1000) / vLots;
+    if (!Number.isFinite(contractSize) || contractSize <= 0) continue;
+    if (unit === "GRMS"){
+      const q = MCX_GRAM_QUOTE[sym] || 1;
+      contractSize = contractSize / q;
+    }
+    const mult = Math.round(contractSize);
+    if (!cand[sym]) cand[sym] = [];
+    if (cand[sym].length < 50) cand[sym].push(mult);
+  }
+
+  const bySym = {};
+  for (const sym of Object.keys(cand)){
+    const arr = cand[sym].slice().sort((a,b)=>a-b);
+    const mid = Math.floor(arr.length/2);
+    const median = (arr.length % 2) ? arr[mid] : Math.round((arr[mid-1] + arr[mid]) / 2);
+    if (median > 0) bySym[sym] = median;
+  }
+  return { bySym };
+}
+
+/** Segment mapping **/
+function targetExchForSegment(seg){
+  if (seg === "NFO") return "NSE";
+  if (seg === "BFO") return "BSE";
+  if (seg === "MCX") return "MCX";
+  return seg;
+}
+
+/** Data + filters **/
+let ALL_ROWS = [];
+let META_LAST = { intra:null, bod:null };
+let SORT = { key:"symbol", dir:"asc" };
+
+function yearMonthFromExpiry(exp){
+  if (!exp || exp.length < 6) return {year:"", mon:""};
+  const y = exp.slice(0,4);
+  const m = exp.slice(4,6);
+  const mi = Number(m) - 1;
+  const mon = (mi>=0 && mi<12) ? MONTH_NAMES[mi] : m;
+  return {year:y, mon};
+}
+function fmtExpiry(exp){
+  if (!exp || exp.length !== 8) return exp || "";
+  const y = exp.slice(0,4);
+  const m = exp.slice(4,6);
+  const d = exp.slice(6,8);
+  const mi = Number(m)-1;
+  const mon = (mi>=0 && mi<12) ? MONTH_NAMES[mi] : m;
+  return d + "-" + mon + "-" + y;
+}
+function pctForRow(r){
+  if (r.BOD !== null && r.BOD !== 0 && r.intraday !== null) return ((r.intraday - r.BOD) / r.BOD) * 100;
+  return null;
+}
+function wantsOptColumns(){
+  return $("f_type").value !== "FUT";
+}
+function currentFilters(){
+  return {
+    type: $("f_type").value,
+    year: $("f_year").value,
+    mon: $("f_month").value,
+    symbol: $("f_symbol").value.trim().toUpperCase(),
+    strike: $("f_strike").value.trim()
+  };
+}
+function applyFilters(rows){
+  const f = currentFilters();
+  return rows.filter(r => {
+    if (f.type !== "ALL"){
+      if (f.type === "FUT" && r.type !== "FUT") return false;
+      if (f.type === "CE" || f.type === "PE"){
+        if (r.type !== "OPT") return false;
+        if (r.optCp !== f.type) return false;
+      }
+    }
+    if (f.year !== "ALL" && r.year !== f.year) return false;
+    if (f.mon !== "ALL" && r.mon !== f.mon) return false;
+    if (f.symbol && !r.symbol.includes(f.symbol)) return false;
+    if (f.strike){
+      const s = String(r.strike||"").replace(/\.0+$/,"");
+      if (s !== f.strike) return false;
+    }
+    return true;
+  });
+}
+function compare(a,b){
+  const k = SORT.key;
+  const dir = (SORT.dir === "desc") ? -1 : 1;
+  const av = (k === "pct") ? pctForRow(a) : a[k];
+  const bv = (k === "pct") ? pctForRow(b) : b[k];
+
+  const numKeys = new Set(["intraday","BOD","diff","pct","strike"]);
+  if (numKeys.has(k)){
+    const an = (av === null || av === undefined || av === "") ? NaN : Number(av);
+    const bn = (bv === null || bv === undefined || bv === "") ? NaN : Number(bv);
+    if (Number.isNaN(an) && Number.isNaN(bn)) return 0;
+    if (Number.isNaN(an)) return 1;
+    if (Number.isNaN(bn)) return -1;
+    return (an - bn) * dir;
+  }
+  const as = (av === null || av === undefined) ? "" : String(av);
+  const bs = (bv === null || bv === undefined) ? "" : String(bv);
+  return as.localeCompare(bs) * dir;
+}
+function sortRows(rows){
+  const out = rows.slice();
+  out.sort((a,b) => {
+    const c = compare(a,b);
+    if (c !== 0) return c;
+    return (a.symbol+a.expiry+a.type+a.optCp+a.strike).localeCompare(b.symbol+b.expiry+b.type+b.optCp+b.strike);
+  });
+  return out;
+}
+function updateTableHeader(){
+  const showOpt = wantsOptColumns();
+  const tr = $("thead_row");
+  tr.innerHTML = "";
+  const cols = showOpt
+    ? ["symbol","year","month","expiry","optCp","strike","intraday","BOD","diff","%chg"]
+    : ["symbol","year","month","expiry","intraday","BOD","diff","%chg"];
+
+  for (const c of cols){
+    const key = (c === "%chg") ? "pct" : c;
+    const th = document.createElement("th");
+    th.dataset.key = key;
+    th.className = (c === "intraday" || c === "BOD" || c === "diff" || c === "%chg" || c === "strike") ? "num" : "";
+    th.innerHTML = c + ((SORT.key === key) ? `<span class="arrow">${SORT.dir === "asc" ? "▲" : "▼"}</span>` : "");
+    th.addEventListener("click", () => {
+      if (SORT.key === key) SORT.dir = (SORT.dir === "asc") ? "desc" : "asc";
+      else { SORT.key = key; SORT.dir = "asc"; }
+      $("sort_key").value = SORT.key;
+      $("sort_dir").value = SORT.dir;
+      LS.set("ui.sortKey", SORT.key);
+      LS.set("ui.sortDir", SORT.dir);
+      render();
+    });
+    tr.appendChild(th);
+  }
+  $("strike_field").style.display = showOpt ? "" : "none";
+  if (!showOpt) $("f_strike").value = "";
+}
+function renderTotals(filtered){
+  const totalsEl = $("totals");
+  totalsEl.innerHTML = "";
+
+  let matched = 0, tIntra = 0, tBod = 0;
+  for (const r of filtered){
+    if (r.intraday !== null && r.BOD !== null){
+      matched++;
+      tIntra += r.intraday;
+      tBod += r.BOD;
+    }
+  }
+  if (matched === 0){
+    const s = document.createElement("span");
+    s.className = "badge secondary";
+    s.textContent = "Totals: —";
+    totalsEl.appendChild(s);
+    return;
+  }
+  const tDiff = tIntra - tBod;
+  const tPct = (tBod === 0) ? null : (tDiff / tBod) * 100;
+
+  const mk = (label, value, cls="secondary") => {
+    const b = document.createElement("span");
+    b.className = "badge " + cls;
+    b.innerHTML = `<strong>${label}</strong> ${value}`;
+    totalsEl.appendChild(b);
+  };
+  mk("Matched", String(matched), "outline");
+  mk("Intraday", fmtINR(tIntra), "secondary");
+  mk("BOD", fmtINR(tBod), "secondary");
+  const diffCls = (tDiff > 0) ? "danger" : (tDiff < 0 ? "success" : "outline");
+  mk("Diff", fmtINR(tDiff), diffCls);
+  mk("%chg", fmtPct(tPct), diffCls);
+}
+function render(){
+  updateTableHeader();
+  const filtered = applyFilters(ALL_ROWS);
+  const sorted = sortRows(filtered);
+  $("count").textContent = sorted.length;
+  renderTotals(sorted);
+
+  const rows = sorted.slice(0, DISPLAY_LIMIT);
+  $("render_note").textContent = (sorted.length > DISPLAY_LIMIT) ? ("Showing first " + DISPLAY_LIMIT + " rows.") : "";
+
+  const showOpt = wantsOptColumns();
+  const tb = $("tbody");
+  tb.innerHTML = "";
+
+  for (const r of rows){
+    const pct = pctForRow(r);
+    const pctCls = (pct === null) ? "" : (pct > 0 ? "danger" : pct < 0 ? "success" : "");
+    const tr = document.createElement("tr");
+    if (showOpt){
+      tr.innerHTML =
+        `<td>${r.symbol}</td>` +
+        `<td>${r.year}</td>` +
+        `<td>${r.mon}</td>` +
+        `<td>${fmtExpiry(r.expiry)}</td>` +
+        `<td>${r.optCp||""}</td>` +
+        `<td class="num">${r.strike||""}</td>` +
+        `<td class="num">${fmt(r.intraday)}</td>` +
+        `<td class="num">${fmt(r.BOD)}</td>` +
+        `<td class="num">${fmt(r.diff)}</td>` +
+        `<td class="num ${pctCls}">${fmtPct(pct)}</td>`;
+    } else {
+      tr.innerHTML =
+        `<td>${r.symbol}</td>` +
+        `<td>${r.year}</td>` +
+        `<td>${r.mon}</td>` +
+        `<td>${fmtExpiry(r.expiry)}</td>` +
+        `<td class="num">${fmt(r.intraday)}</td>` +
+        `<td class="num">${fmt(r.BOD)}</td>` +
+        `<td class="num">${fmt(r.diff)}</td>` +
+        `<td class="num ${pctCls}">${fmtPct(pct)}</td>`;
+    }
+    tb.appendChild(tr);
+  }
+  $("btn_export").disabled = sorted.length === 0;
+}
+function buildYearOptions(rows){
+  const years = Array.from(new Set(rows.map(r => r.year).filter(Boolean))).sort();
+  $("f_year").innerHTML = '<option value="ALL">ALL</option>' + years.map(y => `<option value="${y}">${y}</option>`).join("");
+}
+function buildMonthOptions(rows){
+  const year = $("f_year").value || "ALL";
+  const monthsSet = new Set();
+  for (const r of rows){
+    if (!r.mon) continue;
+    if (year !== "ALL" && r.year !== year) continue;
+    monthsSet.add(r.mon);
+  }
+  const months = Array.from(monthsSet).sort((a,b)=>MONTH_NAMES.indexOf(a)-MONTH_NAMES.indexOf(b));
+  $("f_month").innerHTML = '<option value="ALL">ALL</option>' + months.map(m => `<option value="${m}">${m}</option>`).join("");
+}
+function toCSV(rows){
+  const showOpt = wantsOptColumns();
+  const seg = $("segment").value;
+  const cols = showOpt
+    ? ["segment","symbol","year","month","expiry","type","optCp","strike","intraday","BOD","diff","pct_chg"]
+    : ["segment","symbol","year","month","expiry","type","intraday","BOD","diff","pct_chg"];
+
+  const esc = (v) => {
+    const s = (v===null || v===undefined) ? "" : String(v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+  };
+
+  const out = [cols.join(",")];
+  for (const r of rows){
+    const diff = (r.intraday !== null && r.BOD !== null) ? (r.intraday - r.BOD) : null;
+    const pct = pctForRow(r);
+    const rec = {
+      segment: seg,
+      symbol: r.symbol, year: r.year, month: r.mon, expiry: fmtExpiry(r.expiry),
+      type: r.type, optCp: r.optCp || "", strike: r.strike || "",
+      intraday: r.intraday, BOD: r.BOD, diff, pct_chg: pct
+    };
+    out.push(cols.map(c => esc(rec[c])).join(","));
+  }
+  return out.join("\n");
+}
+function download(name, text){
+  const blob = new Blob([text], {type:"text/csv;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+/** Lots load **/
+async function loadLots(){
+  const seg = $("segment").value;
+  const fBhav = $("bhav").files[0];
+  resetLots();
+
+  if (seg === "BFO"){
+    LOT_SOURCE = "hardcoded";
+    setLotStatus();
+    return;
+  }
+  if (!fBhav){
+    LOT_SOURCE = "default";
+    setLotStatus();
+    return;
+  }
+  if (seg === "MCX"){
+    const res = await loadLotsFromMcxBhav(fBhav);
+    LOT_SOURCE = "bhav";
+    LOT_BY_SYMBOL = res.bySym || {};
+    setLotStatus();
+    return;
+  }
+  const res = await loadLotsFromNseFoBhav(fBhav);
+  LOT_SOURCE = "bhav";
+  LOT_BY_SYMBOL = res.bySym || {};
+  LOT_BY_KEY = res.byKey || {};
+  BHAV_KEYS = res.keys || new Set();
+  setLotStatus();
+}
+function computeLotMissing(rows){
+  const seg = $("segment").value;
+  if (seg === "BFO") return 0;
+  if (LOT_SOURCE !== "bhav") return 0;
+
+  let miss = 0;
+  for (const r of rows){
+    const sym = r.symbol;
+    const exp = r.expiry;
+    if (seg === "NFO"){
+      const k = sym + "|" + exp;
+      if (!LOT_BY_KEY[k] && !LOT_BY_SYMBOL[sym]) miss++;
+    } else if (seg === "MCX"){
+      if (!LOT_BY_SYMBOL[sym] && !MCX_FALLBACK[sym]) miss++;
+    }
+  }
+  return miss;
+}
+
+/** Segment UI **/
+function configureSegmentUI(){
+  const seg = $("segment").value;
+  const bhav = $("bhav");
+  const bhavHint = $("bhav_hint");
+  const bhavFilterWrap = $("bhav_filter_wrap");
+  const bfoHint = $("bfo_hint");
+
+  if (seg === "NFO"){
+    bhav.disabled = false;
+    bhav.accept = ".csv,.zip";
+    bhavHint.textContent = "Upload NSE FO Bhav CSV/ZIP with TckrSymb, NewBrdLotQty, XpryDt.";
+    bhavFilterWrap.style.display = "";
+    $("bhav_filter").checked = LS.get("ui.bhavFilter","1") === "1";
+    bfoHint.style.display = "none";
+  } else if (seg === "BFO"){
+    bhav.disabled = true;
+    bhav.value = "";
+    bhav.accept = "";
+    bhavHint.textContent = "Disabled for BFO. Using default lots.";
+    bhavFilterWrap.style.display = "none";
+    bfoHint.style.display = "";
+    resetLots();
+    LOT_SOURCE = "hardcoded";
+    setLotStatus();
+  } else {
+    bhav.disabled = false;
+    bhav.accept = ".xls,.html";
+    bhavHint.textContent = "Upload MCX bhav (.xls HTML table). If missing, tool uses fallback multipliers.";
+    bhavFilterWrap.style.display = "none";
+    bfoHint.style.display = "none";
+  }
+
+  ALL_ROWS = [];
+  $("tbody").innerHTML = "";
+  $("count").textContent = "0";
+  $("btn_export").disabled = true;
+  setMeta("");
+  setHint("");
+  setProg(0);
+  setStatus("Idle","secondary");
+  LS.set("ui.segment", seg);
+  render();
+}
+$("segment").addEventListener("change", configureSegmentUI);
+
+/** Parse **/
+$("btn_parse").addEventListener("click", async () => {
+  const seg = $("segment").value;
+  const targetExch = targetExchForSegment(seg);
+  const fIntra = $("intra").files[0];
+  const fBod = $("bod").files[0];
+
+  if (!fIntra && !fBod){
+    setStatus("Upload SPAN files", "warning");
+    return;
+  }
+
+  let worker = null;
+  try{
+    setStatus("Loading lots…", "secondary");
+    setHint("");
+    setProg(8);
+    await loadLots();
+
+    setStatus("Reading SPAN…", "secondary");
+    const intraText = fIntra ? await readTextMaybeZip(fIntra, [".spn",".xml"]) : null;
+    const bodText   = fBod   ? await readTextMaybeZip(fBod,   [".spn",".xml"]) : null;
+    setProg(24);
+
+    setStatus("Parsing SPAN…", "secondary");
+    worker = makeWorker();
+
+    const chunks = [];
+    META_LAST = { intra:null, bod:null };
+
+    if (intraText){
+      const res = await parseSpanText(intraText, targetExch, worker, "intra");
+      chunks.push({ label:"intraday", rows: res.rows });
+      META_LAST.intra = res.meta;
+      setProg(56);
+    }
+    if (bodText){
+      const res = await parseSpanText(bodText, targetExch, worker, "bod");
+      chunks.push({ label:"BOD", rows: res.rows });
+      META_LAST.bod = res.meta;
+      setProg(78);
+    }
+
+    FILTER_DROPPED = 0;
+
+    const byKey = new Map();
+    const keyOf = (r) => [r.symbol, r.expiry, r.type, r.optCp||"", r.strike||""].join("|");
+
+    for (const part of chunks){
+      for (const r of part.rows){
+        const symbol = (r.symbol || "").toUpperCase();
+        const expiry = (r.expiry || "").trim();
+        if (!symbol || !expiry) continue;
+
+        if (!shouldKeepByBhav(seg, symbol, expiry)){
+          FILTER_DROPPED++;
+          continue;
+        }
+
+        const ym = yearMonthFromExpiry(expiry);
+        const mult = lotFor(seg, symbol, expiry);
+        const spanVal = (r.span === null || r.span === undefined) ? null : ((r.type === 'OPT' && r.prem !== undefined && r.prem !== null && r.prem !== '') ? ((r.span + Number(r.prem)) * mult) : (r.span * mult));
+
+        const out = {
+          symbol,
+          expiry,
+          year: ym.year,
+          mon: ym.mon,
+          type: r.type || "",
+          optCp: r.optCp || "",
+          strike: r.strike || "",
+          intraday: null,
+          BOD: null,
+          diff: null
+        };
+
+        const k = keyOf(out);
+        const existing = byKey.get(k) || out;
+        if (part.label === "intraday") existing.intraday = spanVal;
+        if (part.label === "BOD") existing.BOD = spanVal;
+        byKey.set(k, existing);
+      }
+    }
+
+    ALL_ROWS = Array.from(byKey.values()).map(r => {
+      const diff = (r.intraday !== null && r.BOD !== null) ? (r.intraday - r.BOD) : null;
+      return { ...r, diff };
+    });
+
+    LOT_MISSING = computeLotMissing(ALL_ROWS);
+    setLotStatus();
+
+    buildYearOptions(ALL_ROWS);
+    const savedYear = LS.get("ui.year", "ALL");
+    if ([...$("f_year").options].some(o => o.value === savedYear)) $("f_year").value = savedYear;
+    buildMonthOptions(ALL_ROWS);
+    const savedMon = LS.get("ui.mon", "ALL");
+    if ([...$("f_month").options].some(o => o.value === savedMon)) $("f_month").value = savedMon;
+
+    render();
+
+    const found = (META_LAST.intra?.exchFound && META_LAST.intra.exchFound.length) ? META_LAST.intra.exchFound
+                 : (META_LAST.bod?.exchFound && META_LAST.bod.exchFound.length) ? META_LAST.bod.exchFound : [];
+    const foundStr = found.length ? found.join(",") : "—";
+    const mi = META_LAST.intra ? ("intraday fut " + (META_LAST.intra.fut||0) + ", opt " + (META_LAST.intra.opt||0)) : "intraday -";
+    const mb = META_LAST.bod ? ("BOD fut " + (META_LAST.bod.fut||0) + ", opt " + (META_LAST.bod.opt||0)) : "BOD -";
+
+    const mismatch = (found.length > 0) && !((META_LAST.intra?.exchMatched === true) || (META_LAST.bod?.exchMatched === true));
+    if (mismatch){
+      setStatus("Exchange not found in file", "warning");
+      setMeta("Found exchanges: " + foundStr + " • Selected " + targetExch + " not found • " + mi + " • " + mb);
+    } else {
+      setStatus("Done", "success");
+      setMeta("Found exchanges: " + foundStr + " • Parsed: " + targetExch + " • " + mi + " • " + mb);
+    }
+
+    if (seg === "NFO" && LOT_SOURCE === "bhav" && $("bhav_filter").checked){
+      setHint("Bhav expiry filter ON — dropped " + FILTER_DROPPED + " SPAN rows not present in bhav XpryDt.");
+    } else setHint("");
+
+    setProg(100);
+  }catch(err){
+    console.error(err);
+    setStatus("Error", "danger");
+    setMeta(String(err?.message || err));
+    setHint("");
+    setProg(0);
+  }finally{
+    if (worker) worker.terminate();
+  }
+});
+
+/** Export **/
+$("btn_export").addEventListener("click", () => {
+  const filtered = applyFilters(ALL_ROWS);
+  const sorted = sortRows(filtered);
+  const csv = toCSV(sorted);
+  const seg = $("segment").value;
+  const f = currentFilters();
+  const stamp = new Date().toISOString().slice(0,10);
+  const name = ("span_" + seg + "_" + f.type + "_" + f.year + "_" + f.mon + "_" + stamp + ".csv").replace(/[^a-zA-Z0-9_.-]+/g,"_");
+  download(name, csv);
+});
+
+/** Clear **/
+$("btn_clear").addEventListener("click", () => {
+  $("intra").value = "";
+  $("bod").value = "";
+  $("bhav").value = "";
+  ALL_ROWS = [];
+  resetLots();
+  setLotStatus();
+  $("tbody").innerHTML = "";
+  $("count").textContent = "0";
+  $("btn_export").disabled = true;
+  setMeta("");
+  setHint("");
+  setProg(0);
+  setStatus("Idle","secondary");
+});
+
+/** Filters + persistence **/
+$("f_year").addEventListener("change", () => { LS.set("ui.year",$("f_year").value); buildMonthOptions(ALL_ROWS); render(); });
+$("f_month").addEventListener("change", () => { LS.set("ui.mon",$("f_month").value); render(); });
+
+$("f_type").addEventListener("change", () => { LS.set("ui.type",$("f_type").value); render(); });
+$("f_symbol").addEventListener("input", () => { LS.set("ui.symbol",$("f_symbol").value); render(); });
+$("f_strike").addEventListener("input", () => { LS.set("ui.strike",$("f_strike").value); render(); });
+
+$("sort_key").addEventListener("change", () => { SORT.key = $("sort_key").value; LS.set("ui.sortKey",SORT.key); render(); });
+$("sort_dir").addEventListener("change", () => { SORT.dir = $("sort_dir").value; LS.set("ui.sortDir",SORT.dir); render(); });
+
+$("bhav_filter").addEventListener("change", () => { LS.set("ui.bhavFilter", $("bhav_filter").checked ? "1":"0"); setHint("Bhav filter changed — click Parse again to re-apply."); });
+
+/** Theme UI listeners **/
+$("theme_mode").addEventListener("change", () => applyThemeMode($("theme_mode").value));
+$("accent").addEventListener("change", () => applyAccent($("accent").value));
+$("compact").addEventListener("change", () => applyCompact($("compact").checked));
+
+/** Init **/
+(function init(){
+  const mode = LS.get("ui.themeMode", "dark");
+  $("theme_mode").value = mode;
+  applyThemeMode(mode);
+
+  const acc = LS.get("ui.accent", "sky");
+  $("accent").value = acc;
+  applyAccent(acc);
+
+  const compact = LS.get("ui.compact", "0") === "1";
+  $("compact").checked = compact;
+  applyCompact(compact);
+
+  const seg = LS.get("ui.segment", "NFO");
+  $("segment").value = seg;
+  configureSegmentUI();
+
+  $("f_type").value = LS.get("ui.type", "FUT");
+  $("f_symbol").value = LS.get("ui.symbol", "");
+  $("f_strike").value = LS.get("ui.strike", "");
+  SORT.key = LS.get("ui.sortKey", "symbol");
+  SORT.dir = LS.get("ui.sortDir", "asc");
+  $("sort_key").value = SORT.key;
+  $("sort_dir").value = SORT.dir;
+
+  updateTableHeader();
+  renderTotals([]);
+  render();
+  setLotStatus();
+})();
+</script>
+</body>
+</html>
