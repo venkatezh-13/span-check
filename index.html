@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SPAN Comparator</title>
+  <title>SPAN Comparator Pro</title>
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -747,7 +747,7 @@
     <div class="brand">
       <div class="logo">SP</div>
       <div class="brand-text">
-        <h1>SPAN Comparator</h1>
+        <h1>SPAN Comparator Pro</h1>
         <p>Intraday vs BOD Margin Analysis</p>
       </div>
     </div>
@@ -1570,10 +1570,24 @@ function applyFilters(rows){
 function compare(a,b){
   const k = SORT.key;
   const dir = (SORT.dir === "asc") ? 1 : -1;
-  const av = a[k];
-  const bv = b[k];
+  
+  // Handle special computed columns
+  let av, bv;
+  if (k === 'pct') {
+    av = pctForRow(a);
+    bv = pctForRow(b);
+  } else if (k === 'type') {
+    // Sort by type: FUT first, then CE, then PE
+    const typeOrder = { 'FUT': 0, 'CE': 1, 'PE': 2 };
+    av = typeOrder[a.type === 'FUT' ? 'FUT' : a.optCp] || 3;
+    bv = typeOrder[b.type === 'FUT' ? 'FUT' : b.optCp] || 3;
+    return (av - bv) * dir;
+  } else {
+    av = a[k];
+    bv = b[k];
+  }
 
-  const numKeys = new Set(["intraday","BOD","diff","strike"]);
+  const numKeys = new Set(["intraday","BOD","diff","strike","pct"]);
   if (numKeys.has(k)){
     const an = (av === null || av === undefined || av === "") ? NaN : Number(av);
     const bn = (bv === null || bv === undefined || bv === "") ? NaN : Number(bv);
@@ -1602,30 +1616,26 @@ function updateTableHeader(){
   const showOpt = wantsOptColumns();
   const tr = $("thead_row");
   tr.innerHTML = "";
-  const cols = showOpt
-    ? [
-        {key:"symbol", label:"Symbol", cls:""},
-        {key:"type", label:"Type", cls:""},
-        {key:"year", label:"Year", cls:""},
-        {key:"mon", label:"Month", cls:""},
-        {key:"expiry", label:"Expiry", cls:""},
-        {key:"strike", label:"Strike", cls:"num"},
-        {key:"intraday", label:"Intraday", cls:"num"},
-        {key:"BOD", label:"BOD", cls:"num"},
-        {key:"diff", label:"Diff", cls:"num"},
-        {key:"pct", label:"Change", cls:"num"}
-      ]
-    : [
-        {key:"symbol", label:"Symbol", cls:""},
-        {key:"type", label:"Type", cls:""},
-        {key:"year", label:"Year", cls:""},
-        {key:"mon", label:"Month", cls:""},
-        {key:"expiry", label:"Expiry", cls:""},
-        {key:"intraday", label:"Intraday", cls:"num"},
-        {key:"BOD", label:"BOD", cls:"num"},
-        {key:"diff", label:"Diff", cls:"num"},
-        {key:"pct", label:"Change", cls:"num"}
-      ];
+  
+  // Define columns with their sort keys
+  const cols = [
+    {key:"symbol", label:"Symbol", cls:""},
+    {key:"type", label:"Type", cls:""},
+    {key:"year", label:"Year", cls:""},
+    {key:"mon", label:"Month", cls:""},
+    {key:"expiry", label:"Expiry", cls:""}
+  ];
+  
+  if (showOpt) {
+    cols.push({key:"strike", label:"Strike", cls:"num"});
+  }
+  
+  cols.push(
+    {key:"intraday", label:"Intraday", cls:"num"},
+    {key:"BOD", label:"BOD", cls:"num"},
+    {key:"diff", label:"Diff", cls:"num"},
+    {key:"pct", label:"Change", cls:"num"}
+  );
 
   for (const c of cols){
     const th = document.createElement("th");
@@ -1634,8 +1644,12 @@ function updateTableHeader(){
     if (SORT.key === c.key) th.classList.add("active-sort");
     th.innerHTML = c.label + (SORT.key === c.key ? `<span class="sort-arrow">${SORT.dir === "asc" ? "↑" : "↓"}</span>` : "");
     th.addEventListener("click", () => {
-      if (SORT.key === c.key) SORT.dir = (SORT.dir === "asc") ? "desc" : "asc";
-      else { SORT.key = c.key; SORT.dir = "asc"; }
+      if (SORT.key === c.key) {
+        SORT.dir = (SORT.dir === "asc") ? "desc" : "asc";
+      } else { 
+        SORT.key = c.key; 
+        SORT.dir = "desc"; 
+      }
       LS.set("ui.sortKey", SORT.key);
       LS.set("ui.sortDir", SORT.dir);
       render();
