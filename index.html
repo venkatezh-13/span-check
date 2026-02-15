@@ -37,6 +37,18 @@
       --radius-xl: 24px;
     }
 
+    [data-theme="light"] {
+      --bg-primary: #f8f9fa;
+      --bg-secondary: #ffffff;
+      --bg-card: rgba(255, 255, 255, 0.8);
+      --glass-border: rgba(0, 0, 0, 0.08);
+      --glass-highlight: rgba(0, 0, 0, 0.02);
+      
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #94a3b8;
+    }
+
     * {
       margin: 0;
       padding: 0;
@@ -49,6 +61,7 @@
       color: var(--text-primary);
       min-height: 100vh;
       overflow-x: hidden;
+      transition: background 0.3s, color 0.3s;
     }
 
     /* Animated background grid */
@@ -64,6 +77,12 @@
       background-size: 50px 50px;
       pointer-events: none;
       z-index: 0;
+    }
+
+    [data-theme="light"] .bg-grid {
+      background-image: 
+        linear-gradient(rgba(0, 102, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 102, 255, 0.05) 1px, transparent 1px);
     }
 
     .bg-glow {
@@ -91,6 +110,12 @@
         inset 0 1px 0 var(--glass-highlight);
     }
 
+    [data-theme="light"] .glass {
+      box-shadow: 
+        0 8px 32px 0 rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 var(--glass-highlight);
+    }
+
     /* Header */
     header {
       position: sticky;
@@ -99,6 +124,11 @@
       border-bottom: 1px solid var(--glass-border);
       background: rgba(10, 11, 15, 0.8);
       backdrop-filter: blur(20px);
+      transition: background 0.3s;
+    }
+
+    [data-theme="light"] header {
+      background: rgba(248, 249, 250, 0.8);
     }
 
     .header-content {
@@ -213,6 +243,12 @@
       box-shadow: 
         0 8px 32px 0 rgba(0, 0, 0, 0.5),
         0 0 0 1px rgba(0, 240, 255, 0.1);
+    }
+
+    [data-theme="light"] .card:hover {
+      box-shadow: 
+        0 8px 32px 0 rgba(0, 0, 0, 0.15),
+        0 0 0 1px rgba(0, 102, 255, 0.2);
     }
 
     .card-header {
@@ -370,6 +406,10 @@
       box-shadow: 0 0 0 3px rgba(0, 240, 255, 0.1);
     }
 
+    [data-theme="light"] select.field-input, [data-theme="light"] input.field-input {
+      background: rgba(0, 0, 0, 0.03);
+    }
+
     /* Buttons */
     .btn {
       padding: 12px 24px;
@@ -388,7 +428,7 @@
 
     .btn-primary {
       background: linear-gradient(135deg, var(--neon-cyan), var(--neon-blue));
-      color: var(--bg-primary);
+      color: #fff;
       box-shadow: 0 4px 20px rgba(0, 240, 255, 0.3);
     }
 
@@ -406,6 +446,16 @@
     .btn-secondary:hover {
       background: rgba(255, 255, 255, 0.1);
       border-color: var(--neon-cyan);
+    }
+
+    .btn-warning {
+      background: rgba(255, 170, 0, 0.15);
+      color: var(--neon-orange);
+      border: 1px solid rgba(255, 170, 0, 0.3);
+    }
+
+    .btn-warning:hover {
+      background: rgba(255, 170, 0, 0.25);
     }
 
     .btn:disabled {
@@ -486,9 +536,16 @@
     /* Filters */
     .filters-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 12px;
       margin-bottom: 20px;
+      align-items: end;
+    }
+
+    .filter-actions {
+      display: flex;
+      gap: 8px;
+      align-items: end;
     }
 
     /* Table */
@@ -529,6 +586,10 @@
       transition: all 0.2s;
     }
 
+    [data-theme="light"] th {
+      background: rgba(248, 249, 250, 0.95);
+    }
+
     th:hover {
       color: var(--neon-cyan);
       background: rgba(0, 240, 255, 0.05);
@@ -556,10 +617,18 @@
       white-space: nowrap;
     }
 
+    [data-theme="light"] td {
+      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
     td.num { text-align: right; font-variant-numeric: tabular-nums; }
 
     tr:hover td {
       background: rgba(0, 240, 255, 0.03);
+    }
+
+    [data-theme="light"] tr:hover td {
+      background: rgba(0, 102, 255, 0.05);
     }
 
     .tag {
@@ -668,8 +737,7 @@
     }
   </style>
 </head>
-<body>
-
+<body data-theme="dark">
 <div class="bg-grid"></div>
 <div class="bg-glow glow-1"></div>
 <div class="bg-glow glow-2"></div>
@@ -688,7 +756,7 @@
       <div class="control-group">
         <label>Theme</label>
         <select id="theme_mode">
-          <option value="dark">Dark</option>
+          <option value="dark" selected>Dark</option>
           <option value="light">Light</option>
         </select>
       </div>
@@ -703,7 +771,7 @@
       </div>
       <div class="control-group">
         <label>Compact</label>
-        <input type="checkbox" id="compact" style="accent-color: var(--neon-cyan);">
+        <input type="checkbox" id="compact">
       </div>
     </div>
   </div>
@@ -764,7 +832,7 @@
 
       <!-- Filter Checkbox -->
       <label id="bhav_filter_wrap" style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 8px;">
-        <input type="checkbox" id="bhav_filter" checked style="accent-color: var(--neon-cyan);">
+        <input type="checkbox" id="bhav_filter" checked>
         <span style="font-size: 13px; color: var(--text-secondary);">Filter by Bhav expiry dates</span>
       </label>
 
@@ -829,12 +897,17 @@
     <!-- Filters -->
     <div class="filters-grid">
       <div class="field">
+        <label class="field-label">Symbol</label>
+        <input type="text" id="f_symbol" class="field-input" placeholder="e.g. NIFTY, RELIANCE, CRUDEOIL">
+      </div>
+      
+      <div class="field">
         <label class="field-label">Instrument</label>
         <select id="f_type" class="field-input">
+          <option value="ALL">All Instruments</option>
           <option value="FUT" selected>Futures</option>
           <option value="CE">Call Options</option>
           <option value="PE">Put Options</option>
-          <option value="ALL">All Instruments</option>
         </select>
       </div>
       
@@ -852,34 +925,13 @@
         </select>
       </div>
       
-      <div class="field">
-        <label class="field-label">Symbol</label>
-        <input type="text" id="f_symbol" class="field-input" placeholder="NIFTY, CRUDEOIL...">
-      </div>
-      
       <div class="field" id="strike_field" style="display: none;">
         <label class="field-label">Strike</label>
         <input type="text" id="f_strike" class="field-input" placeholder="e.g. 25000">
       </div>
       
-      <div class="field">
-        <label class="field-label">Sort By</label>
-        <select id="sort_key" class="field-input">
-          <option value="symbol" selected>Symbol</option>
-          <option value="expiry">Expiry</option>
-          <option value="intraday">Intraday</option>
-          <option value="BOD">BOD</option>
-          <option value="diff">Difference</option>
-          <option value="pct">% Change</option>
-        </select>
-      </div>
-      
-      <div class="field">
-        <label class="field-label">Order</label>
-        <select id="sort_dir" class="field-input">
-          <option value="asc">Ascending</option>
-          <option value="desc" selected>Descending</option>
-        </select>
+      <div class="filter-actions">
+        <button id="btn_reset" class="btn btn-warning">Reset Filters</button>
       </div>
     </div>
 
@@ -915,6 +967,17 @@ const LS = {
   get: (k, d=null) => { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch { return d; } },
   set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
 };
+
+/** Theme handling **/
+function applyTheme(mode){
+  const body = document.body;
+  if (mode === 'light') {
+    body.setAttribute('data-theme', 'light');
+  } else {
+    body.setAttribute('data-theme', 'dark');
+  }
+  LS.set("ui.theme", mode);
+}
 
 /** Accent presets */
 const ACCENTS = {
@@ -953,6 +1016,7 @@ const MCX_GRAM_QUOTE = { "GOLD":10, "GOLDM":10, "GOLDTEN":10, "GOLDPETAL":1, "GO
 
 const DISPLAY_LIMIT = 6000;
 const MONTH_NAMES = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+const MONTH_ORDER = { "JAN":0, "FEB":1, "MAR":2, "APR":3, "MAY":4, "JUN":5, "JUL":6, "AUG":7, "SEP":8, "OCT":9, "NOV":10, "DEC":11 };
 const $ = (id) => document.getElementById(id);
 
 const fmt = (x) => (x === null || x === undefined || Number.isNaN(x)) ? "—" : "₹" + (+x).toLocaleString('en-IN', {maximumFractionDigits: 2});
@@ -1374,8 +1438,9 @@ function targetExchForSegment(seg){
 /** Data **/
 let ALL_ROWS = [];
 let META_LAST = { intra:null, bod:null };
-let SORT = { key:"symbol", dir:"desc" };
+let SORT = { key:"symbol", dir:"asc" };
 let autoRunTimeout = null;
+let isProcessing = false;
 
 function yearMonthFromExpiry(exp){
   if (!exp || exp.length < 6) return {year:"", mon:""};
@@ -1390,30 +1455,110 @@ function pctForRow(r){
   return null;
 }
 function wantsOptColumns(){
-  return $("f_type").value !== "FUT";
+  const t = $("f_type").value;
+  return t === "CE" || t === "PE" || t === "ALL";
 }
+
+/** Smart Filter Logic **/
+function getAvailableSymbols(){
+  const rows = ALL_ROWS;
+  const symbols = new Set();
+  for (const r of rows) symbols.add(r.symbol);
+  return Array.from(symbols).sort();
+}
+
+function getAvailableInstrumentsForSymbol(symbol){
+  const rows = ALL_ROWS.filter(r => r.symbol === symbol);
+  const types = new Set();
+  for (const r of rows){
+    if (r.type === 'FUT') types.add('FUT');
+    else if (r.optCp) types.add(r.optCp);
+  }
+  return Array.from(types).sort();
+}
+
+function getAvailableYearsForSymbolAndType(symbol, type){
+  const rows = ALL_ROWS.filter(r => {
+    if (r.symbol !== symbol) return false;
+    if (type === 'ALL') return true;
+    if (type === 'FUT') return r.type === 'FUT';
+    return r.optCp === type;
+  });
+  const years = new Set();
+  for (const r of rows) if (r.year) years.add(r.year);
+  return Array.from(years).sort();
+}
+
+function getAvailableMonthsForSymbolTypeYear(symbol, type, year){
+  const rows = ALL_ROWS.filter(r => {
+    if (r.symbol !== symbol) return false;
+    if (year !== 'ALL' && r.year !== year) return false;
+    if (type === 'ALL') return true;
+    if (type === 'FUT') return r.type === 'FUT';
+    return r.optCp === type;
+  });
+  const months = new Set();
+  for (const r of rows) if (r.mon) months.add(r.mon);
+  return Array.from(months).sort((a,b) => MONTH_ORDER[a] - MONTH_ORDER[b]);
+}
+
+function updateFilterOptions(){
+  const currentSymbol = $("f_symbol").value.trim().toUpperCase();
+  const currentType = $("f_type").value;
+  const currentYear = $("f_year").value;
+  
+  // Only update year/month if we have data
+  if (ALL_ROWS.length === 0) return;
+  
+  // If symbol is entered, update instrument options
+  if (currentSymbol) {
+    const availableTypes = getAvailableInstrumentsForSymbol(currentSymbol);
+    // Keep current selection if valid, otherwise default to first available
+    if (!availableTypes.includes(currentType) && currentType !== 'ALL') {
+      // If current type not available, switch to ALL or first available
+      if (availableTypes.length > 0) {
+        $("f_type").value = availableTypes.includes('FUT') ? 'FUT' : 'ALL';
+      }
+    }
+  }
+  
+  // Update year options based on symbol and type
+  const availableYears = getAvailableYearsForSymbolAndType(currentSymbol, $("f_type").value);
+  const yearSelect = $("f_year");
+  const savedYear = yearSelect.value;
+  yearSelect.innerHTML = '<option value="ALL">All Years</option>' + 
+    availableYears.map(y => `<option value="${y}">${y}</option>`).join("");
+  if (availableYears.includes(savedYear)) yearSelect.value = savedYear;
+  
+  // Update month options based on symbol, type, and year
+  const availableMonths = getAvailableMonthsForSymbolTypeYear(currentSymbol, $("f_type").value, yearSelect.value);
+  const monthSelect = $("f_month");
+  const savedMonth = monthSelect.value;
+  monthSelect.innerHTML = '<option value="ALL">All Months</option>' + 
+    availableMonths.map(m => `<option value="${m}">${m}</option>`).join("");
+  if (availableMonths.includes(savedMonth)) monthSelect.value = savedMonth;
+}
+
 function currentFilters(){
   return {
+    symbol: $("f_symbol").value.trim().toUpperCase(),
     type: $("f_type").value,
     year: $("f_year").value,
     mon: $("f_month").value,
-    symbol: $("f_symbol").value.trim().toUpperCase(),
     strike: $("f_strike").value.trim()
   };
 }
+
 function applyFilters(rows){
   const f = currentFilters();
   return rows.filter(r => {
+    if (f.symbol && !r.symbol.includes(f.symbol)) return false;
     if (f.type !== "ALL"){
       if (f.type === "FUT" && r.type !== "FUT") return false;
-      if (f.type === "CE" || f.type === "PE"){
-        if (r.type !== "OPT") return false;
-        if (r.optCp !== f.type) return false;
-      }
+      if ((f.type === "CE" || f.type === "PE") && r.optCp !== f.type) return false;
     }
     if (f.year !== "ALL" && r.year !== f.year) return false;
     if (f.mon !== "ALL" && r.mon !== f.mon) return false;
-    if (f.symbol && !r.symbol.includes(f.symbol)) return false;
     if (f.strike){
       const s = String(r.strike||"").replace(/\.0+$/,"");
       if (s !== f.strike) return false;
@@ -1421,13 +1566,14 @@ function applyFilters(rows){
     return true;
   });
 }
+
 function compare(a,b){
   const k = SORT.key;
-  const dir = (SORT.dir === "desc") ? -1 : 1;
-  const av = (k === "pct") ? pctForRow(a) : a[k];
-  const bv = (k === "pct") ? pctForRow(b) : b[k];
+  const dir = (SORT.dir === "asc") ? 1 : -1;
+  const av = a[k];
+  const bv = b[k];
 
-  const numKeys = new Set(["intraday","BOD","diff","pct","strike"]);
+  const numKeys = new Set(["intraday","BOD","diff","strike"]);
   if (numKeys.has(k)){
     const an = (av === null || av === undefined || av === "") ? NaN : Number(av);
     const bn = (bv === null || bv === undefined || bv === "") ? NaN : Number(bv);
@@ -1440,15 +1586,18 @@ function compare(a,b){
   const bs = (bv === null || bv === undefined) ? "" : String(bv);
   return as.localeCompare(bs) * dir;
 }
+
 function sortRows(rows){
   const out = rows.slice();
   out.sort((a,b) => {
     const c = compare(a,b);
     if (c !== 0) return c;
-    return (a.symbol+a.expiry+a.type+a.optCp+a.strike).localeCompare(b.symbol+b.expiry+b.type+b.optCp+b.strike);
+    // Secondary sort by expiry
+    return (a.expiry || "").localeCompare(b.expiry || "");
   });
   return out;
 }
+
 function updateTableHeader(){
   const showOpt = wantsOptColumns();
   const tr = $("thead_row");
@@ -1456,10 +1605,10 @@ function updateTableHeader(){
   const cols = showOpt
     ? [
         {key:"symbol", label:"Symbol", cls:""},
+        {key:"type", label:"Type", cls:""},
         {key:"year", label:"Year", cls:""},
         {key:"mon", label:"Month", cls:""},
         {key:"expiry", label:"Expiry", cls:""},
-        {key:"optCp", label:"Type", cls:""},
         {key:"strike", label:"Strike", cls:"num"},
         {key:"intraday", label:"Intraday", cls:"num"},
         {key:"BOD", label:"BOD", cls:"num"},
@@ -1468,6 +1617,7 @@ function updateTableHeader(){
       ]
     : [
         {key:"symbol", label:"Symbol", cls:""},
+        {key:"type", label:"Type", cls:""},
         {key:"year", label:"Year", cls:""},
         {key:"mon", label:"Month", cls:""},
         {key:"expiry", label:"Expiry", cls:""},
@@ -1485,9 +1635,7 @@ function updateTableHeader(){
     th.innerHTML = c.label + (SORT.key === c.key ? `<span class="sort-arrow">${SORT.dir === "asc" ? "↑" : "↓"}</span>` : "");
     th.addEventListener("click", () => {
       if (SORT.key === c.key) SORT.dir = (SORT.dir === "asc") ? "desc" : "asc";
-      else { SORT.key = c.key; SORT.dir = "desc"; }
-      $("sort_key").value = SORT.key;
-      $("sort_dir").value = SORT.dir;
+      else { SORT.key = c.key; SORT.dir = "asc"; }
       LS.set("ui.sortKey", SORT.key);
       LS.set("ui.sortDir", SORT.dir);
       render();
@@ -1497,6 +1645,7 @@ function updateTableHeader(){
   $("strike_field").style.display = showOpt ? "block" : "none";
   if (!showOpt) $("f_strike").value = "";
 }
+
 function updateStats(filtered){
   $("stats_grid").style.display = "grid";
   let matched = 0, tIntra = 0, tBod = 0;
@@ -1516,6 +1665,7 @@ function updateStats(filtered){
   $("stat_intra").className = "stat-value " + (diff > 0 ? "positive" : diff < 0 ? "negative" : "");
   $("stat_bod").className = "stat-value " + (diff < 0 ? "positive" : diff > 0 ? "negative" : "");
 }
+
 function render(){
   updateTableHeader();
   const filtered = applyFilters(ALL_ROWS);
@@ -1549,10 +1699,10 @@ function render(){
     if (showOpt){
       tr.innerHTML =
         `<td><strong>${r.symbol}</strong></td>` +
+        `<td>${typeTag}</td>` +
         `<td>${r.year}</td>` +
         `<td>${r.mon}</td>` +
         `<td>${fmtDate(r.expiry)}</td>` +
-        `<td>${typeTag}</td>` +
         `<td class="num">${r.strike||""}</td>` +
         `<td class="num">${fmt(r.intraday)}</td>` +
         `<td class="num">${fmt(r.BOD)}</td>` +
@@ -1561,6 +1711,7 @@ function render(){
     } else {
       tr.innerHTML =
         `<td><strong>${r.symbol}</strong></td>` +
+        `<td>${typeTag}</td>` +
         `<td>${r.year}</td>` +
         `<td>${r.mon}</td>` +
         `<td>${fmtDate(r.expiry)}</td>` +
@@ -1573,27 +1724,13 @@ function render(){
   }
   $("btn_export").disabled = false;
 }
-function buildYearOptions(rows){
-  const years = Array.from(new Set(rows.map(r => r.year).filter(Boolean))).sort();
-  $("f_year").innerHTML = '<option value="ALL">All Years</option>' + years.map(y => `<option value="${y}">${y}</option>`).join("");
-}
-function buildMonthOptions(rows){
-  const year = $("f_year").value || "ALL";
-  const monthsSet = new Set();
-  for (const r of rows){
-    if (!r.mon) continue;
-    if (year !== "ALL" && r.year !== year) continue;
-    monthsSet.add(r.mon);
-  }
-  const months = Array.from(monthsSet).sort((a,b)=>MONTH_NAMES.indexOf(a)-MONTH_NAMES.indexOf(b));
-  $("f_month").innerHTML = '<option value="ALL">All Months</option>' + months.map(m => `<option value="${m}">${m}</option>`).join("");
-}
+
 function toCSV(rows){
   const showOpt = wantsOptColumns();
   const seg = $("segment").value;
   const cols = showOpt
-    ? ["segment","symbol","year","month","expiry","type","optCp","strike","intraday","BOD","diff","pct_chg"]
-    : ["segment","symbol","year","month","expiry","type","intraday","BOD","diff","pct_chg"];
+    ? ["segment","symbol","type","year","month","expiry","strike","intraday","BOD","diff","pct_chg"]
+    : ["segment","symbol","type","year","month","expiry","intraday","BOD","diff","pct_chg"];
 
   const esc = (v) => {
     const s = (v===null || v===undefined) ? "" : String(v);
@@ -1606,14 +1743,16 @@ function toCSV(rows){
     const pct = pctForRow(r);
     const rec = {
       segment: seg,
-      symbol: r.symbol, year: r.year, month: r.mon, expiry: fmtDate(r.expiry),
-      type: r.type, optCp: r.optCp || "", strike: r.strike || "",
+      symbol: r.symbol, type: r.type === 'FUT' ? 'FUT' : r.optCp,
+      year: r.year, month: r.mon, expiry: fmtDate(r.expiry),
+      strike: r.strike || "",
       intraday: r.intraday, BOD: r.BOD, diff, pct_chg: pct
     };
     out.push(cols.map(c => esc(rec[c])).join(","));
   }
   return out.join("\n");
 }
+
 function download(name, text){
   const blob = new Blob([text], {type:"text/csv;charset=utf-8"});
   const a = document.createElement("a");
@@ -1640,6 +1779,10 @@ async function loadLots(){
     setLotStatus();
     return;
   }
+  
+  setStatus("Loading Bhav", "loading");
+  setMeta("Parsing lot sizes...");
+  
   if (seg === "MCX"){
     const res = await loadLotsFromMcxBhav(fBhav);
     LOT_SOURCE = "bhav";
@@ -1654,6 +1797,7 @@ async function loadLots(){
   BHAV_KEYS = res.keys || new Set();
   setLotStatus();
 }
+
 function computeLotMissing(rows){
   const seg = $("segment").value;
   if (seg === "BFO") return 0;
@@ -1674,13 +1818,25 @@ function computeLotMissing(rows){
 
 /** Main parse **/
 async function runParser(){
+  if (isProcessing) return;
+  isProcessing = true;
+  
   const seg = $("segment").value;
   const targetExch = targetExchForSegment(seg);
   const fIntra = $("intra").files[0];
   const fBod = $("bod").files[0];
+  const fBhav = $("bhav").files[0];
+
+  // If only bhav changed and we already have data, just reprocess with new lots
+  if (!fIntra && !fBod && ALL_ROWS.length > 0 && fBhav) {
+    // Just re-loading lots, already done in handleFileChange
+    isProcessing = false;
+    return;
+  }
 
   if (!fIntra && !fBod){
     setStatus("Upload files", "idle");
+    isProcessing = false;
     return;
   }
 
@@ -1755,12 +1911,8 @@ async function runParser(){
     LOT_MISSING = computeLotMissing(ALL_ROWS);
     setLotStatus();
 
-    buildYearOptions(ALL_ROWS);
-    const savedYear = LS.get("ui.year", "ALL");
-    if ([...$("f_year").options].some(o => o.value === savedYear)) $("f_year").value = savedYear;
-    buildMonthOptions(ALL_ROWS);
-    const savedMon = LS.get("ui.mon", "ALL");
-    if ([...$("f_month").options].some(o => o.value === savedMon)) $("f_month").value = savedMon;
+    // Initialize filters with smart options
+    updateFilterOptions();
 
     render();
 
@@ -1786,6 +1938,7 @@ async function runParser(){
     setMeta(String(err?.message || err));
     setProg(0);
   }finally{
+    isProcessing = false;
     if (worker) worker.terminate();
   }
 }
@@ -1800,11 +1953,9 @@ function handleFileChange(type){
     zone.querySelector(".upload-text").textContent = file.name;
     zone.querySelector(".upload-hint").textContent = (file.size/1024).toFixed(1) + " KB";
     
-    // Auto-run on SPAN files
-    if (type === "intra" || type === "bod"){
-      clearTimeout(autoRunTimeout);
-      autoRunTimeout = setTimeout(() => runParser(), 500);
-    }
+    // Auto-run on any file change
+    clearTimeout(autoRunTimeout);
+    autoRunTimeout = setTimeout(() => runParser(), 500);
   } else {
     zone.classList.remove("has-file");
     zone.querySelector(".upload-text").textContent = type === "bhav" ? "Optional: Bhav for lot sizes" : "Drop SPAN file here";
@@ -1877,7 +2028,7 @@ $("btn_export").addEventListener("click", () => {
   const seg = $("segment").value;
   const f = currentFilters();
   const stamp = new Date().toISOString().slice(0,10);
-  const name = `SPAN_${seg}_${f.type}_${stamp}.csv`;
+  const name = `SPAN_${seg}_${f.symbol || 'ALL'}_${stamp}.csv`;
   download(name, csv);
 });
 
@@ -1892,28 +2043,73 @@ $("btn_clear").addEventListener("click", () => {
   $("stats_grid").style.display = "none";
   setMeta("Ready");
   setStatus("Idle", "idle");
+  
+  // Reset filters
+  $("f_symbol").value = "";
+  $("f_type").value = "FUT";
+  $("f_year").innerHTML = '<option value="ALL">All Years</option>';
+  $("f_month").innerHTML = '<option value="ALL">All Months</option>';
+  $("f_strike").value = "";
+  
   render();
 });
 
-/** Filters **/
-$("f_year").addEventListener("change", () => { LS.set("ui.year",$("f_year").value); buildMonthOptions(ALL_ROWS); render(); });
-$("f_month").addEventListener("change", () => { LS.set("ui.mon",$("f_month").value); render(); });
-$("f_type").addEventListener("change", () => { LS.set("ui.type",$("f_type").value); render(); });
-$("f_symbol").addEventListener("input", () => { LS.set("ui.symbol",$("f_symbol").value); render(); });
-$("f_strike").addEventListener("input", () => { LS.set("ui.strike",$("f_strike").value); render(); });
-$("sort_key").addEventListener("change", () => { SORT.key = $("sort_key").value; LS.set("ui.sortKey",SORT.key); render(); });
-$("sort_dir").addEventListener("change", () => { SORT.dir = $("sort_dir").value; LS.set("ui.sortDir",SORT.dir); render(); });
+/** Reset Filters **/
+$("btn_reset").addEventListener("click", () => {
+  $("f_symbol").value = "";
+  $("f_type").value = "FUT";
+  $("f_strike").value = "";
+  updateFilterOptions();
+  render();
+});
+
+/** Smart Filter Events **/
+$("f_symbol").addEventListener("input", () => {
+  LS.set("ui.symbol", $("f_symbol").value);
+  updateFilterOptions();
+  render();
+});
+
+$("f_type").addEventListener("change", () => {
+  LS.set("ui.type", $("f_type").value);
+  updateFilterOptions();
+  render();
+});
+
+$("f_year").addEventListener("change", () => {
+  LS.set("ui.year", $("f_year").value);
+  updateFilterOptions();
+  render();
+});
+
+$("f_month").addEventListener("change", () => {
+  LS.set("ui.mon", $("f_month").value);
+  render();
+});
+
+$("f_strike").addEventListener("input", () => {
+  LS.set("ui.strike", $("f_strike").value);
+  render();
+});
+
 $("bhav_filter").addEventListener("change", () => { 
   LS.set("ui.bhavFilter", $("bhav_filter").checked ? "1":"0"); 
   if (ALL_ROWS.length) runParser();
 });
 
 /** Theme **/
+$("theme_mode").addEventListener("change", () => {
+  applyTheme($("theme_mode").value);
+});
 $("accent").addEventListener("change", () => applyAccent($("accent").value));
 $("compact").addEventListener("change", () => applyCompact($("compact").checked));
 
 /** Init **/
 (function init(){
+  const savedTheme = LS.get("ui.theme", "dark");
+  $("theme_mode").value = savedTheme;
+  applyTheme(savedTheme);
+  
   applyAccent(LS.get("ui.accent", "cyan"));
   applyCompact(LS.get("ui.compact", "0") === "1");
   
@@ -1925,9 +2121,7 @@ $("compact").addEventListener("change", () => applyCompact($("compact").checked)
   $("f_symbol").value = LS.get("ui.symbol", "");
   $("f_strike").value = LS.get("ui.strike", "");
   SORT.key = LS.get("ui.sortKey", "symbol");
-  SORT.dir = LS.get("ui.sortDir", "desc");
-  $("sort_key").value = SORT.key;
-  $("sort_dir").value = SORT.dir;
+  SORT.dir = LS.get("ui.sortDir", "asc");
   $("bhav_filter").checked = LS.get("ui.bhavFilter","1") === "1";
 
   updateTableHeader();
